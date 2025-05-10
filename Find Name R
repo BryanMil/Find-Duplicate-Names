@@ -1,0 +1,62 @@
+library(reader)
+library(dplyr)
+library(stringr)
+library(tidyr)
+
+df <- read.csv("Find_Names.csv", header = FALSE)
+View(df)
+# Create the header row
+header_row <- c("Name", "SS")
+
+# Add the header row to the DataFrame
+colnames(df) <- header_row
+
+
+
+
+# Create df2 by excluding the second column (SS in this case)
+df2 <- df %>% select(-SS)
+View(df2)
+# Split Names by Capital letters
+df2 <- df2 %>%
+  mutate(split = str_extract_all(Name, "[A-Z][a-z]*|[A-Z]+")) %>%
+  unnest_wider(split, names_sep = "") %>%
+  rename(Col2 = split1, Col3 = split2, Col4 = split3, Col5 = split4)
+# Move Are last Names to the last column
+df3 <- df2 %>%
+  mutate(
+    Col5 = ifelse(is.na(Col5) & is.na(Col4), Col3,
+                  ifelse(is.na(Col5) & !is.na(Col4), Col4, Col5)),
+    Col3 = ifelse(is.na(Col5) & is.na(Col4), NA, Col3),
+    Col4 = ifelse(is.na(Col5) & !is.na(Col4), NA, Col4)
+  )
+df3 <- df3 %>%
+  mutate(
+    Col3 = ifelse(Col5 == Col3, NA, Col3),
+    Col4 = ifelse(Col5 == Col4, NA, Col4)
+  )
+View(df3)
+# Function to compare each row with rows below and print matching index & Col1
+match_rows <- function(df) {
+  n <- nrow(df)
+  for (i in 1:(n - 1)) {
+    key_i1 <- paste0(df$Col2[i], df$Col5[i])
+    key_i2 <- paste0(df$Col2[i], df$Col4[i], df$Col5[i])
+    for (j in (i + 1):n) {
+      key_j1 <- paste0(df$Col2[j], df$Col5[j])
+      key_j2 <- paste0(df$Col5[j], df$Col2[j])
+      key_j3 <- paste0(df$Col5[j], df$Col2[j], df$Col3[j])
+      if (key_i1 == key_j1 || key_i1 == key_j2 || key_i2 == key_j3) {
+        # Print index and Col1 for both rows
+          cat(sprintf("Match found:\n[%d] %s\n[%d] %s\n------\n", i, df$Name[i], j, df$Name[j]))
+      }
+    }
+  }
+}
+
+# Run the function
+match_rows(df3)
+
+df4 <- df[c(1, 2, 4, 13, 5, 11, 6, 12), ]
+
+View(df4)
